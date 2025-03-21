@@ -58,7 +58,7 @@ class AlchemyPlugin {
         return new GameFunction({
             name: "get_transaction_history",
             description:
-                "Fetches the transaction history for a given EVM address across specified blockchain networks using the Alchemy API. The networks supported are ETH (eth-mainnet) and BASE (base-mainnet) mainnet networks.",
+                "Fetches the transaction history for a given EVM address across specified blockchain networks using the Alchemy API. The networks supported are ETH (eth-mainnet) and BASE (base-mainnet) mainnet networks. Apply filters to find transactions by a specific field (e.g., gasPrice) if given.",
             args: [
                 {
                     name: "address",
@@ -73,9 +73,21 @@ class AlchemyPlugin {
                 },
                 {
                     name: "limit",
-                    description: "Maximum number of transactions to return. Defaults to 25 if not provided. Maximum limit is 100.",
+                    description: "Maximum number of transactions to return. Defaults to 25 if not provided. Maximum limit is 50.",
                     type: "number",
                 },
+                {
+                    name: "findBy",
+                    description: "Find transactions by a specific field (e.g., gasPrice).",
+                    type: "string",
+                    optional: true,
+                },
+                {
+                    name: "findValue",
+                    description: "Value to find transactions by (e.g., 15666336304).",
+                    type: "string",
+                    optional: true,
+                }
             ] as const,
             executable: async (args, logger) => {
                 try {
@@ -133,13 +145,25 @@ class AlchemyPlugin {
                         }
                     );
 
-                    const result = response.data;
+                    let result = response.data;
+                    if (args.findBy && args.findValue) {
+                        result.transactions = result.transactions.filter((tx: any) => tx[args.findBy as string] === args.findValue);
+                        result.totalCount = result.transactions.length;
+
+                        if (!result.totalCount) {
+                            return new ExecutableGameFunctionResponse(
+                                ExecutableGameFunctionStatus.Failed,
+                                "No transaction history found"
+                            );
+                        }
+                    }
+
                     logger(`Successfully fetched ${result.totalCount} transactions.`);
 
                     return new ExecutableGameFunctionResponse(
                         ExecutableGameFunctionStatus.Done,
                         JSON.stringify({
-                            message: "Transaction history fetched successfully",
+                            message: "Transaction history that fulfil the requests are fetched successfully",
                             data: result,
                         })
                     );
